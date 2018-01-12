@@ -53,6 +53,7 @@ namespace DebugHelper
             list.DoubleClick += List_DoubleClick;
 
             list.Columns.Add("Index", 60);
+            list.Columns.Add("Type", 60);
             list.Columns.Add("Name", 120);
             list.Columns.Add("Value", 420);
 
@@ -205,9 +206,13 @@ namespace DebugHelper
                 if (o.GetType().IsPrimitive || o is string)
                     value = GetPrimitiveString(o);
 
+                //string type = "<null>";
+                //if (o != null)
+                string type = o.GetType().ToString();
                 string[] item =
                 {
                     "[" + indices.AsArrayIndexString() + "]",
+                    type,
                     value
                 };
                 result.Add(new SpecialListViewItem(indices, item));
@@ -289,6 +294,7 @@ namespace DebugHelper
                     view.DoubleClick += View_DoubleClick;
 
                     view.Columns.Add("Index", 60);
+                    view.Columns.Add("Type", 60);
                     view.Columns.Add("Name", 540);
 
                     view.ColumnWidthChanging += ListOnColumnWidthChanging;
@@ -328,6 +334,7 @@ namespace DebugHelper
                     view.DoubleClick += View_DoubleClick;
 
                     view.Columns.Add("Index", 60);
+                    view.Columns.Add("Type", 60);
                     view.Columns.Add("Name", 540);
 
                     view.ColumnWidthChanging += ListOnColumnWidthChanging;
@@ -337,9 +344,13 @@ namespace DebugHelper
                         string value = listObj[i].ToString();
                         if (listObj[i].GetType().IsPrimitive || listObj[i] is string)
                             value = GetPrimitiveString(listObj[i]);
+                        string type = "<null>";
+                        if (listObj[i] != null)
+                            type = listObj[i].GetType().ToString();
                         string[] listItem =
                         {
                             i.ToString(),
+                            type,
                             value
                         };
                         view.Items.Add(new ListViewItem(listItem));
@@ -447,9 +458,13 @@ namespace DebugHelper
                 }
                 else
                     value = values[i].ToString();
+                string type = "<null>";
+                if (values[i] != null)
+                    type = values[i].GetType().ToString();
                 string[] listItem = 
                 {
                     i.ToString(),
+                    type,
                     keys[i],
                     value
                 };
