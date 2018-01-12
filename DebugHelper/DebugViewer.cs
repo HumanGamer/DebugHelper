@@ -33,36 +33,39 @@ namespace DebugHelper
             }
         }
 
-        private Dictionary<string, object> Fields;
-        private ListView list;
+        private readonly Dictionary<string, object> _fields;
+        private readonly ListView _lstView;
 
         /// <summary>
         /// Initialize a new instance of the DebugViewer class with default settings.
         /// </summary>
         public DebugViewer()
         {
-            Fields = new Dictionary<string, object>();
+            _fields = new Dictionary<string, object>();
             //DoubleBuffered = true;
 
-            list = new ListView();
-            list.View = View.Details;
-            list.Dock = DockStyle.Fill;
-            list.FullRowSelect = true;
-            list.GridLines = true;
-            list.MultiSelect = false;
-            list.DoubleClick += List_DoubleClick;
+            Width = 200;
+            Height = 200;
 
-            list.Columns.Add("Index", 60);
-            list.Columns.Add("Type", 60);
-            list.Columns.Add("Name", 120);
-            list.Columns.Add("Value", 420);
+            _lstView = new ListView();
+            _lstView.View = View.Details;
+            _lstView.Dock = DockStyle.Fill;
+            _lstView.FullRowSelect = true;
+            _lstView.GridLines = true;
+            _lstView.MultiSelect = false;
+            _lstView.DoubleClick += LstViewDoubleClick;
 
-            list.ColumnWidthChanging += ListOnColumnWidthChanging;
+            _lstView.Columns.Add("Index", 60);
+            _lstView.Columns.Add("Type", 120);
+            _lstView.Columns.Add("Name", 120);
+            _lstView.Columns.Add("Value", 420);
 
-            Controls.Add(list);
+            _lstView.ColumnWidthChanging += LstViewOnColumnWidthChanging;
+
+            Controls.Add(_lstView);
         }
 
-        private void ListOnColumnWidthChanging(object sender, ColumnWidthChangingEventArgs e)
+        private void LstViewOnColumnWidthChanging(object sender, ColumnWidthChangingEventArgs e)
         {
             // Disabled as it's unnessecary
             /*ListView listView = sender as ListView;
@@ -72,12 +75,12 @@ namespace DebugHelper
             e.NewWidth = listView.Columns[e.ColumnIndex].Width;*/
         }
 
-        private void List_DoubleClick(object sender, EventArgs e)
+        private void LstViewDoubleClick(object sender, EventArgs e)
         {
-            if (list.SelectedIndices.Count == 0)
+            if (_lstView.SelectedIndices.Count == 0)
                 return;
-            int index = list.SelectedIndices[0];
-            object obj = Fields.Values.ToList()[index];
+            int index = _lstView.SelectedIndices[0];
+            object obj = _fields.Values.ToList()[index];
 
             ProcessObject(obj);
         }
@@ -89,24 +92,168 @@ namespace DebugHelper
                 return;
             int index = listView.SelectedIndices[0];
 
-            IList list = listView.List;
-            object obj;
-            if (list is Array && ((Array) list).Rank > 1)
+            if (listView.List == null && listView.Dictionary != null)
             {
-                SpecialListViewItem item = listView.SelectedItems[0] as SpecialListViewItem;
-                if (item == null)
+                IDictionary dict = listView.Dictionary;
+                if (index > dict.Count)
                     return;
 
-                int[] indices = item.SpecialIndex;
-                obj = ((Array) list).GetValue(indices);
+                List<object> values = new List<object>();
+                foreach (object value in dict.Values)
+                {
+                    values.Add(value);
+                }
+
+                ProcessObject(values[index]);
+            }
+            else if (listView.List != null && listView.Dictionary == null)
+            {
+                IList list = listView.List;
+                object obj;
+                if (list is Array && ((Array) list).Rank > 1)
+                {
+                    SpecialListViewItem item = listView.SelectedItems[0] as SpecialListViewItem;
+                    if (item == null)
+                        return;
+
+                    int[] indices = item.SpecialIndex;
+                    obj = ((Array) list).GetValue(indices);
+                }
+                else
+                {
+                    if (index > list.Count)
+                        return;
+                    obj = list[index];
+                }
+                ProcessObject(obj);
+            }
+        }
+
+        private Type GetBestType1(Type type1, Type type2)
+        {
+            if (type1 == typeof(object) || type2 == typeof(object))
+                return typeof(object);
+            Type result;
+            if (type1.BaseType == type2)
+            {
+                result = type2;
+            }
+            else if (type1 == type2.BaseType)
+            {
+                result = type1;
+            }
+            else if (type1.BaseType == type2.BaseType)
+            {
+                result = type1.BaseType;
             }
             else
             {
-                if (index > list.Count)
-                    return;
-                obj = list[index];
+                result = GetBestType1(type1.BaseType, type2);
+                if (result == null)
+                    result = GetBestType1(type1, type2.BaseType);
+                if (result == null)
+                    result = GetBestType1(type1.BaseType, type2.BaseType);
             }
-            ProcessObject(obj);
+
+            return result;
+        }
+
+        private List<Type> GetBestType2(List<Type> types)
+        {
+            List<Type> types2 = new List<Type>();
+            bool matches = true;
+            for (int i = 0; i < types.Count; i++)
+            {
+                Type type = types[i];
+                for (int j = 0; j < types.Count; j++)
+                {
+                    Type type2 = types[j];
+
+                    if (type != type2)
+                    {
+                        matches = false;
+                        Type type3 = GetBestType1(type, type2);
+                        if (type3 != null && !types2.Contains(type3))
+                            types2.Add(type3);
+                    }
+                }
+            }
+
+            if (matches && types.Count > 0)
+            {
+                types2.Add(types[0]);
+                return types2;
+            }
+
+            if (types2.Count > 1)
+                return GetBestType2(types2);
+            return types2;
+        }
+
+        private Type GetArrayType(IList list)
+        {
+            if (list == null)
+                return null;
+
+            List<Type> types = new List<Type>();
+            foreach (object obj in list)
+            {
+                types.Add(obj.GetType());
+            }
+
+            List<Type> types2 = GetBestType2(types);
+            if (types2.Count > 0)
+                return types2[0];
+
+            return list.GetType();
+        }
+
+        private Type GetArrayType(IDictionary dictionary, bool keyType)
+        {
+            if (dictionary == null)
+                return null;
+
+            List<Type> types = new List<Type>();
+            ICollection collection = keyType ? dictionary.Keys : dictionary.Values;
+
+            foreach (object obj in collection)
+            {
+                types.Add(obj.GetType());
+            }
+
+            List<Type> types2 = GetBestType2(types);
+            if (types2.Count > 0)
+                return types2[0];
+
+            return dictionary.GetType();
+        }
+
+        private string GetTypeName(Type type)
+        {
+            if (type == typeof(ValueType))
+                return "Number";
+            return type.Name;
+        }
+
+        private string GetTypeString(object obj)
+        {
+            if (obj is IList && !(obj is Array))
+            {
+                IList listObj = (IList) obj;
+                Type type = GetArrayType(listObj);
+                if (type != null)
+                    return "List<" + GetTypeName(type) + ">";
+            } else if (obj is IDictionary)
+            {
+                IDictionary dictObj = (IDictionary)obj;
+                Type keyType = GetArrayType(dictObj, true);
+                Type valueType = GetArrayType(dictObj, false);
+
+                if (keyType != null && valueType != null)
+                    return "Dictionary<" + GetTypeName(keyType) + ", " + GetTypeName(valueType) + ">";
+            }
+
+            return GetTypeName(obj.GetType());
         }
 
         private string GetPrimitiveString(object obj)
@@ -208,7 +355,7 @@ namespace DebugHelper
 
                 //string type = "<null>";
                 //if (o != null)
-                string type = o.GetType().ToString();
+                string type = GetTypeString(o);
                 string[] item =
                 {
                     "[" + indices.AsArrayIndexString() + "]",
@@ -273,7 +420,7 @@ namespace DebugHelper
 
                     Form listForm = new Form
                     {
-                        Text = "View List",
+                        Text = "View Array",
                         Size = new Size(640, 480),
                         StartPosition = FormStartPosition.CenterParent,
                         FormBorderStyle = FormBorderStyle.SizableToolWindow,
@@ -294,10 +441,10 @@ namespace DebugHelper
                     view.DoubleClick += View_DoubleClick;
 
                     view.Columns.Add("Index", 60);
-                    view.Columns.Add("Type", 60);
-                    view.Columns.Add("Name", 540);
+                    view.Columns.Add("Type", 120);
+                    view.Columns.Add("Value", 540);
 
-                    view.ColumnWidthChanging += ListOnColumnWidthChanging;
+                    view.ColumnWidthChanging += LstViewOnColumnWidthChanging;
 
                     int[] indices = new int[arr.Rank];
                     List<ListViewItem> items = GetMultiItems(arr, indices, 0);
@@ -311,9 +458,13 @@ namespace DebugHelper
                 {
                     IList listObj = (IList) obj;
 
+                    string txt = "View List";
+                    if (listObj is Array)
+                        txt = "View Array";
+
                     Form listForm = new Form
                     {
-                        Text = "View List",
+                        Text = txt,
                         Size = new Size(640, 480),
                         StartPosition = FormStartPosition.CenterParent,
                         FormBorderStyle = FormBorderStyle.SizableToolWindow,
@@ -334,10 +485,10 @@ namespace DebugHelper
                     view.DoubleClick += View_DoubleClick;
 
                     view.Columns.Add("Index", 60);
-                    view.Columns.Add("Type", 60);
-                    view.Columns.Add("Name", 540);
+                    view.Columns.Add("Type", 120);
+                    view.Columns.Add("Value", 540);
 
-                    view.ColumnWidthChanging += ListOnColumnWidthChanging;
+                    view.ColumnWidthChanging += LstViewOnColumnWidthChanging;
 
                     for (int i = 0; i < listObj.Count; i++)
                     {
@@ -346,7 +497,7 @@ namespace DebugHelper
                             value = GetPrimitiveString(listObj[i]);
                         string type = "<null>";
                         if (listObj[i] != null)
-                            type = listObj[i].GetType().ToString();
+                            type = GetTypeString(listObj[i]);
                         string[] listItem =
                         {
                             i.ToString(),
@@ -360,6 +511,75 @@ namespace DebugHelper
 
                     listForm.ShowDialog(this);
                 }
+            }
+            else if (obj is IDictionary)
+            {
+                IDictionary dictObj = (IDictionary)obj;
+
+                Form listForm = new Form
+                {
+                    Text = "View Dictionary",
+                    Size = new Size(640, 480),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.SizableToolWindow,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    ShowInTaskbar = false
+                };
+
+                SuperListView view = new SuperListView(dictObj)
+                {
+                    View = View.Details,
+                    Dock = DockStyle.Fill,
+                    FullRowSelect = true,
+                    GridLines = true,
+                    MultiSelect = false
+                };
+
+                view.DoubleClick += View_DoubleClick;
+
+                view.Columns.Add("Key", 60);
+                view.Columns.Add("Type", 120);
+                view.Columns.Add("Value", 540);
+
+                view.ColumnWidthChanging += LstViewOnColumnWidthChanging;
+
+                ICollection keyCollection = dictObj.Keys;
+                ICollection valueCollection = dictObj.Values;
+
+                List<object> keys = new List<object>();
+                foreach (object key in keyCollection)
+                {
+                    keys.Add(key);
+                }
+
+                List<object> values = new List<object>();
+                foreach (object value in valueCollection)
+                {
+                    values.Add(value);
+                }
+
+                for (int i = 0; i < dictObj.Count; i++)
+                {
+                    string key = keys[i].ToString();
+                    string value = values[i].ToString();
+                    if (values[i].GetType().IsPrimitive || values[i] is string)
+                        value = GetPrimitiveString(values[i]);
+                    string type = "<null>";
+                    if (values[i] != null)
+                        type = GetTypeString(values[i]);
+                    string[] listItem =
+                    {
+                        key,
+                        type,
+                        value
+                    };
+                    view.Items.Add(new ListViewItem(listItem));
+                }
+
+                listForm.Controls.Add(view);
+
+                listForm.ShowDialog(this);
             }
             else
             {
@@ -401,8 +621,8 @@ namespace DebugHelper
 
         private void UpdateDisplay()
         {
-            Fields.Clear();
-            list.Items.Clear();
+            _fields.Clear();
+            _lstView.Items.Clear();
             object obj = _selectedObject;
             if (obj == null)
                 return;
@@ -410,7 +630,7 @@ namespace DebugHelper
             FieldInfo[] fields = t.GetFields();
             foreach (FieldInfo field in fields)
             {
-                Fields.Add(field.Name, field.GetValue(obj));
+                _fields.Add(field.Name, field.GetValue(obj));
             }
 
             PropertyInfo[] properties = t.GetProperties();
@@ -418,7 +638,7 @@ namespace DebugHelper
             {
                 try
                 {
-                    Fields.Add(property.Name, property.GetValue(obj));
+                    _fields.Add(property.Name, property.GetValue(obj));
                 }
                 catch (TargetParameterCountException e)
                 {
@@ -427,9 +647,9 @@ namespace DebugHelper
                 }
             }
 
-            List<string> keys = Fields.Keys.ToList();
-            List<object> values = Fields.Values.ToList();
-            for (int i = 0; i < Fields.Count; i++)
+            List<string> keys = _fields.Keys.ToList();
+            List<object> values = _fields.Values.ToList();
+            for (int i = 0; i < _fields.Count; i++)
             {
                 string value;
                 if (values[i] == null)
@@ -453,14 +673,22 @@ namespace DebugHelper
                     else
                     {
                         IList list = (IList) values[i];
-                        value = "List[" + list.Count.ToString() + "]";
+                        if (list is Array)
+                            value = "Array[" + list.Count + "]";
+                        else
+                            value = "List[" + list.Count + "]";
                     }
+                }
+                else if (values[i] is IDictionary)
+                {
+                    IDictionary dict = (IDictionary) values[i];
+                    value = "Dictionary[" + dict.Count + "]";
                 }
                 else
                     value = values[i].ToString();
                 string type = "<null>";
                 if (values[i] != null)
-                    type = values[i].GetType().ToString();
+                    type = GetTypeString(values[i]);
                 string[] listItem = 
                 {
                     i.ToString(),
@@ -468,7 +696,7 @@ namespace DebugHelper
                     keys[i],
                     value
                 };
-                list.Items.Add(new ListViewItem(listItem));
+                _lstView.Items.Add(new ListViewItem(listItem));
             }
         }
 
@@ -480,9 +708,22 @@ namespace DebugHelper
                 private set;
             }
 
+            public IDictionary Dictionary
+            {
+                get;
+                private set;
+            }
+
             public SuperListView(IList list) : base()
             {
                 List = list;
+                Dictionary = null;
+            }
+
+            public SuperListView(IDictionary dictionary) : base()
+            {
+                List = null;
+                Dictionary = dictionary;
             }
         }
 
