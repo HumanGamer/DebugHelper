@@ -199,10 +199,16 @@ namespace DebugHelper
             {
                 indices[dimensionNum] = i;
 
+                object o = values.GetValue(indices);
+
+                string value = o.ToString();
+                if (o.GetType().IsPrimitive || o is string)
+                    value = GetPrimitiveString(o);
+
                 string[] item =
                 {
                     "[" + indices.AsArrayIndexString() + "]",
-                    values.GetValue(indices).ToString()
+                    value
                 };
                 result.Add(new SpecialListViewItem(indices, item));
             }
@@ -328,10 +334,13 @@ namespace DebugHelper
 
                     for (int i = 0; i < listObj.Count; i++)
                     {
+                        string value = listObj[i].ToString();
+                        if (listObj[i].GetType().IsPrimitive || listObj[i] is string)
+                            value = GetPrimitiveString(listObj[i]);
                         string[] listItem =
                         {
                             i.ToString(),
-                            listObj[i].ToString()
+                            value
                         };
                         view.Items.Add(new ListViewItem(listItem));
                     }
