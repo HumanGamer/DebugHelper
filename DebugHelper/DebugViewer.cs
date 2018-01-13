@@ -198,7 +198,8 @@ namespace DebugHelper
             List<Type> types = new List<Type>();
             foreach (object obj in list)
             {
-                types.Add(obj.GetType());
+                if (obj != null)
+                    types.Add(obj.GetType());
             }
 
             List<Type> types2 = GetBestType2(types);
@@ -218,7 +219,8 @@ namespace DebugHelper
 
             foreach (object obj in collection)
             {
-                types.Add(obj.GetType());
+                if (obj != null)
+                    types.Add(obj.GetType());
             }
 
             List<Type> types2 = GetBestType2(types);
@@ -253,6 +255,8 @@ namespace DebugHelper
                     return "Dictionary<" + GetTypeName(keyType) + ", " + GetTypeName(valueType) + ">";
             }
 
+            if (obj == null)
+                return "<null>";
             return GetTypeName(obj.GetType());
         }
 
@@ -349,8 +353,10 @@ namespace DebugHelper
 
                 object o = values.GetValue(indices);
 
-                string value = o.ToString();
-                if (o.GetType().IsPrimitive || o is string)
+                string value = "<null>";
+                if (o != null)
+                    value = o.ToString();
+                if (o != null && o.GetType().IsPrimitive || o is string)
                     value = GetPrimitiveString(o);
 
                 //string type = "<null>";
@@ -492,8 +498,10 @@ namespace DebugHelper
 
                     for (int i = 0; i < listObj.Count; i++)
                     {
-                        string value = listObj[i].ToString();
-                        if (listObj[i].GetType().IsPrimitive || listObj[i] is string)
+                        string value = "<null>";
+                        if (listObj[i] != null)
+                            value = listObj[i].ToString();
+                        if (listObj[i] != null && listObj[i].GetType().IsPrimitive || listObj[i] is string)
                             value = GetPrimitiveString(listObj[i]);
                         string type = "<null>";
                         if (listObj[i] != null)
@@ -562,8 +570,10 @@ namespace DebugHelper
                 for (int i = 0; i < dictObj.Count; i++)
                 {
                     string key = keys[i].ToString();
-                    string value = values[i].ToString();
-                    if (values[i].GetType().IsPrimitive || values[i] is string)
+                    string value = "<null>";
+                    if (values[i] != null)
+                        value = values[i].ToString();
+                    if (values[i] != null && values[i].GetType().IsPrimitive || values[i] is string)
                         value = GetPrimitiveString(values[i]);
                     string type = "<null>";
                     if (values[i] != null)
