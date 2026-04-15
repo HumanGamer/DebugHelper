@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>HumanGamer</Authors>
-    <Description>A simple winforms utility to view information about any object.</Description>
+    <Description>A library that displays of the contents of any object with winforms. Useful for debugging.</Description>
     <PackageProjectUrl></PackageProjectUrl>
     <RepositoryUrl>https://github.com/HumanGamer/DebugHelper</RepositoryUrl>
     <PackageReleaseNotes>Updated to .NET 8 and fixed bug with Multi-Dimensional arrays</PackageReleaseNotes>

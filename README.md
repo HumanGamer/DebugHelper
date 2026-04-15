@@ -1,3 +1,3 @@
 # DebugHelper
 
-A simple winforms utility to view information about any object.
+A library that displays of the contents of any object with winforms. Useful for debugging.
