@@ -768,7 +768,7 @@ namespace DebugHelper
 
             public SpecialListViewItem(int[] specialIndex, string[] subItems) : base(subItems)
             {
-                SpecialIndex = specialIndex;
+                SpecialIndex = (int[])specialIndex.Clone();
             }
         }
     }
