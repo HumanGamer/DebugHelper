@@ -5,6 +5,16 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Authors>HumanGamer</Authors>
+    <Description>A simple winforms utility to view information about any object.</Description>
+    <PackageProjectUrl></PackageProjectUrl>
+    <RepositoryUrl>https://github.com/HumanGamer/DebugHelper</RepositoryUrl>
+    <PackageReleaseNotes>Updated to .NET 8 and fixed bug with Multi-Dimensional arrays</PackageReleaseNotes>
+    <AssemblyVersion>1.1.0</AssemblyVersion>
+    <FileVersion>1.1.0</FileVersion>
+    <IncludeSymbols>False</IncludeSymbols>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
 </Project>
